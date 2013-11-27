@@ -1,0 +1,30 @@
+{
+    "name": "Bartek Tłumacz",
+    "version": "0.1",
+    "manifest_version": 2,
+    "description": "Description",
+    "options_page": "options.html",
+    "icons": {
+        "16": "img/16.png",
+        "48": "img/48.png",
+        "128": "img/128.png"
+    },
+    "omnibox": {
+        "keyword": "br"
+    },
+    "background": {
+        "scripts": ["background.js"]
+    },
+    "content_scripts": [{
+        "js": ["pageScript.js"],
+        "matches": ["http://*/*", "https://*/*", "file:///*"],
+        "run_at": "document_start"
+    }],
+    "homepage_url": "http://k2.pl",
+    "minimum_chrome_version": "26",
+    "permissions": [
+        "contextMenus",
+        "https://*.google.com/",
+        "http://tomekf.pl/"
+    ]
+}
