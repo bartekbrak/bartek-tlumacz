@@ -164,16 +164,17 @@ chrome.extension.onRequest.addListener(onRequest);
 
 //nowa komunikacja chrome > 25
 //message
-chrome.runtime.onMessage.addListener(
-    function(request, sender, sendResponse) {
-        log(sender.tab ?
-            "from a content script:" + sender.tab.url :
-            "from the extension");
-        if (request.greeting == "hello")
-            sendResponse({
-                farewell: "goodbye!"
-            });
-    });
+// chrome.runtime.onMessage.addListener(
+//     function(request, sender, sendResponse) {
+//         log('pop!');
+//         log(sender.tab ?
+//             "from a content script:" + sender.tab.url :
+//             "from the extension");
+//         if (request.greeting == "hello")
+//             sendResponse({
+//                 farewell: "goodbye!"
+//             });
+//     });
 //connect - lepsze
 chrome.runtime.onConnect.addListener(function(port) {
     log(port.name);
@@ -191,6 +192,7 @@ chrome.runtime.onConnect.addListener(function(port) {
                 port.postMessage({
                     answer: event.target.result.definition
                 });
+          else log("Didn't find the word " + msg.caught)
 
         };
     });
