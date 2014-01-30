@@ -1,65 +1,57 @@
 // indexedDB
-var version = 17;
+var version = 35;
 
-// http://stackoverflow.com/a/18278346
-function loadJSON(path, success, error)
-{
-    var xhr = new XMLHttpRequest();
-    xhr.onreadystatechange = function()
-    {
-        if (xhr.readyState === 4) {
-            if (xhr.status === 200) {
-                if (success)
-                    success(JSON.parse(xhr.responseText));
-            } else {
-                if (error)
-                    error(xhr);
-            }
-        }
-    };
-    xhr.open("GET", path, true);
-    xhr.send();
+function logerr(e) {
+    log("IndexedDB error" + e.code + ": " + e.message);
+}
+
+function log(e) {
+    console.log(e);
 }
 
 
-console.log('indexedDB start', new Date());
+log('indexedDB start ' + new Date());
 
 var BR = {};
 
 BR.db = null;
 BR.results = [];
 
+
 BR.open = function() {
-    var request = indexedDB.open("todos", version);
+    var request = indexedDB.open("tlumacz", version);
     request.onupgradeneeded = function(e) {
-        var db = e.target.result;
+        BR.db = e.target.result;
         e.target.transaction.onerror = BR.onerror;
 
-        if (db.objectStoreNames.contains("definitions")) {
-            db.deleteObjectStore("definitions");
+        if (BR.db.objectStoreNames.contains("definitions")) {
+            BR.db.deleteObjectStore("definitions");
         }
 
-        var store = db.createObjectStore("definitions", {
+        var store = BR.db.createObjectStore("definitions", {
             keyPath: "lemma"
         });
+        log(store);
 
+        BR.loadDefinitions();
     };
     request.onsuccess = function(e) {
         BR.db = e.target.result;
-        // console.log('This is what success tastes like!')
-        // BR.loadDefinitions();
+        log('request.onsuccess zakończył się powodzeniem')
+        // var store = BR.db.createObjectStore("definitions", {
+        //     keyPath: "lemma"
+        // });
+        // BR.loadDefinitions(store);
     };
-    request.onerror = function(e) {
-        console.log('Database error: ' + e.target.errorCode);
-    };
+    request.onerror = logerr;
 };
 
 BR.loadDefinitions = function() {
-    console.log('Loading the definitions into Indexed DB')
+    log('Loading the definitions into Indexed DB')
     loadJSON('./dictionaries/samples/dictionary.small.json',
         function(dictionary) {
             for (var lemma in dictionary) {
-                BR.addDefinition(lemma, dictionary[lemma]); 
+                BR.addDefinitionStore(lemma, dictionary[lemma]);
             }
         },
         function(xhr) { console.error(xhr); }
@@ -78,43 +70,56 @@ BR.getAllTodoItems = function() {
     cursorRequest.onsuccess = function(e) {
         var result = e.target.result;
         if (result === null) {
-            console.log('i tu!')
+            log('i tu!')
             return;
         } else {
             BR.results.push([result.value.text, result]);
-            console.log('tu!')
-            console.log(result.value.text, result);
+            log('tu!')
+            log(result.value.text + result);
             result.
             continue ();
         }
     };
-    cursorRequest.onerror = BR.onerror;
+    cursorRequest.onerror = request.onerror = logerr;
 };
 
 
 BR.getDefinition = function(caught) {
-    var db = BR.db;
-    var trans = db.transaction(["definitions"], "readonly");
-    var store = trans.objectStore("definitions");
+    var store = BR.db.transaction(["definitions"], "readonly").objectStore("definitions");
     var request = store.get(caught);
     request.onsuccess = function(e) {
-        console.log('getDefinition success');
-        console.log(e.target.result.name);
+        log('getDefinition success');
+        log(e.target.result.name);
     };
-    request.onerror = function(e) {
-        console.log(e.value);
-        console.log('error');
-    };
+    request.onerror = logerr;
 };
 
 BR.getOne = function(c) {
     BR.db.transaction("definitions").objectStore("definitions").get(c).onsuccess = function(event) {
       if (event.target.result != undefined)
-      console.log("it is " + event.target.result.definition);
+      log("it is " + event.target.result.definition);
 
     };
-    
+
 }
+
+BR.addDefinitionStore = function(lemma, definition) {
+    log('loading lemma: ' + lemma)
+    log('loading definition: ' + definition)
+    var db = BR.db;
+    log('got db: ' + db )
+    var trans = db.transaction(["definitions"], "readwrite");
+    var store = trans.objectStore("definitions");
+
+    var request = store.put({
+        "lemma": lemma,
+        "definition": definition
+    });
+    request.onsuccess = function(e) {
+        log('addDefinition success');
+    };
+    request.onerror = logerr;
+};
 
 BR.addDefinition = function(lemma, definition) {
     var db = BR.db;
@@ -125,11 +130,9 @@ BR.addDefinition = function(lemma, definition) {
         "definition": definition
     });
     request.onsuccess = function(e) {
-        console.log('addDefinition success');
+        log('addDefinition success');
     };
-    request.onerror = function(e) {
-        console.log(e.value);
-    };
+    request.onerror = logerr;
 };
 
 BR.init = function() {
@@ -152,7 +155,7 @@ function onRequest(request, sender, sendResponse) {
         chrome.tabs.create({
             url: chrome.extension.getURL('options.html')
         });
-    } 
+    }
     // else if (request == 'giveLocalStorage') {
     //     sendResponse(BR.results);
     // }
@@ -163,7 +166,7 @@ chrome.extension.onRequest.addListener(onRequest);
 //message
 chrome.runtime.onMessage.addListener(
     function(request, sender, sendResponse) {
-        console.log(sender.tab ?
+        log(sender.tab ?
             "from a content script:" + sender.tab.url :
             "from the extension");
         if (request.greeting == "hello")
@@ -173,11 +176,11 @@ chrome.runtime.onMessage.addListener(
     });
 //connect - lepsze
 chrome.runtime.onConnect.addListener(function(port) {
-    console.log(port.name);
+    log(port.name);
     //poniżej moiżwemy consoloe.log zrobi dla rozmowy
     port.onMessage.addListener(function(msg) {
         // if (msg.caught == "alguno") {
-        //     console.log('got alguno');
+        //     log('got alguno');
         //     port.postMessage({
         //         answer: "someone (some person)"
         //     });
@@ -188,8 +191,8 @@ chrome.runtime.onConnect.addListener(function(port) {
                 port.postMessage({
                     answer: event.target.result.definition
                 });
-            
-        };         
+
+        };
     });
 });
 
@@ -202,9 +205,9 @@ chrome.runtime.onConnect.addListener(function(port) {
 // xhr.onreadystatechange = function() {
 //     if (xhr.readyState === 4) {
 //         if (xhr.status == 200) {
-//             console.log(JSON.parse(xhr.response));
+//             log(JSON.parse(xhr.response));
 //         } else if (xhr.status != 200) {
-//             console.log('Błąd: ' + xhr.status + '!');
+//             log('Błąd: ' + xhr.status + '!');
 //         }
 //     }
 // };
